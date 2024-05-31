@@ -39,7 +39,7 @@ func TestMemKV_Get(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
-			kvs := memkv.NewMemKV(".")
+			kvs := memkv.NewMemKV(".", nil)
 			for _, e := range tt.Expect {
 				kvs.Set(e.k, e.v)
 				if v, ok := kvs.Get(e.k); ok {
@@ -81,7 +81,7 @@ func TestMemKV_Set(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
-			kvs := memkv.NewMemKV(".")
+			kvs := memkv.NewMemKV(".", nil)
 			for _, e := range tt.Expect {
 				if ok := kvs.Set(e.k, e.v); !ok && !e.fail {
 					t.Error("Failed to set key unexpectedly")
@@ -94,5 +94,14 @@ func TestMemKV_Set(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestMemKV_Contains(t *testing.T) {
+	kvs := memkv.NewMemKV(".", &memkv.Opts{CaseInsensitive: true})
+	kvs.Set("TestKey", 42)
+	kvs.Set("TestKey.path", 100)
+	if !kvs.Contains("TestKey") || !kvs.Contains("testkey") {
+		t.Error("contains failed")
 	}
 }
