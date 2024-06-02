@@ -1,27 +1,59 @@
 package memkv
 
 import (
+	"fmt"
+	"slices"
 	"strings"
 	"sync"
+	"time"
 )
 
 type Opts struct {
 	CaseInsensitive bool
 }
 
+type EventType int
+
+const (
+	E_KEY_CREATED  = iota
+	E_KEY_UPDATED  = iota
+	E_KEY_ACCESSED = iota
+)
+
+type Event struct {
+	Key        string
+	Type       EventType
+	When       time.Time
+	Success    bool
+	FailReason string
+	OldVal     any
+	NewVal     any
+}
+
+type WatchHook func(e Event)
+type Trigger func(self *MemKV, e Event)
+
+type eHandler struct {
+	hook         WatchHook
+	trigger      Trigger
+	eventsFilter []EventType
+}
+
 type MemKV struct {
-	sync.RWMutex
+	l         sync.RWMutex
 	sep       string
 	caseSense bool
 	m         map[string]any
+	watchers  map[string][]eHandler
 }
 
 func NewMemKV(sep string, opts *Opts) *MemKV {
 	s := &MemKV{
-		RWMutex:   sync.RWMutex{},
+		l:         sync.RWMutex{},
 		sep:       sep,
 		caseSense: true,
 		m:         make(map[string]any),
+		watchers:  make(map[string][]eHandler),
 	}
 
 	if opts == nil {
@@ -36,8 +68,8 @@ func NewMemKV(sep string, opts *Opts) *MemKV {
 }
 
 func (m *MemKV) Get(key string) (any, bool) {
-	m.RLock()
-	defer m.RUnlock()
+	m.l.RLock()
+	defer m.l.RUnlock()
 	if !m.caseSense {
 		key = strings.ToLower(key)
 	}
@@ -60,12 +92,19 @@ func (m *MemKV) Get(key string) (any, bool) {
 	if !ok {
 		return nil, ok
 	}
+	e := Event{
+		Key:     key,
+		Type:    E_KEY_ACCESSED,
+		When:    time.Now(),
+		Success: true,
+	}
+	m.dispatchWatchers(e)
 	return val, true
 }
 
 func (m *MemKV) Set(key string, val any) bool {
-	m.Lock()
-	defer m.Unlock()
+	m.l.Lock()
+	defer m.l.Unlock()
 	if !m.caseSense {
 		key = strings.ToLower(key)
 	}
@@ -89,8 +128,63 @@ func (m *MemKV) Set(key string, val any) bool {
 		}
 	}
 	key = keys[len(keys)-1]
+	if v, ok := view[key]; !ok {
+		e := Event{
+			Key:     key,
+			Type:    E_KEY_CREATED,
+			NewVal:  val,
+			When:    time.Now(),
+			Success: true,
+		}
+		m.dispatchWatchers(e)
+	} else {
+		e := Event{
+			Key:     key,
+			Type:    E_KEY_UPDATED,
+			NewVal:  val,
+			OldVal:  v,
+			When:    time.Now(),
+			Success: true,
+		}
+		m.dispatchWatchers(e)
+	}
 	view[key] = val
 	return true
+}
+
+func (m *MemKV) dispatchWatchers(e Event) {
+	var wg sync.WaitGroup
+	for _, w := range m.watchers[e.Key] {
+		if slices.Contains(w.eventsFilter, e.Type) && w.hook != nil {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				w.hook(e)
+			}()
+		}
+	}
+	wg.Wait()
+	fmt.Println("done")
+}
+
+func (m *MemKV) AddWatcherHook(key string, hook WatchHook, eFilter []EventType) {
+	m.l.Lock()
+	defer m.l.Unlock()
+	if !m.caseSense {
+		key = strings.ToLower(key)
+	}
+
+	handler := eHandler{
+		hook:         hook,
+		trigger:      nil,
+		eventsFilter: eFilter,
+	}
+
+	if _, ok := m.watchers[key]; !ok {
+		m.watchers[key] = []eHandler{handler}
+	} else {
+		m.watchers[key] = append(m.watchers[key], handler)
+	}
 }
 
 func (m *MemKV) Contains(key string) bool {

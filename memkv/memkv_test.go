@@ -100,8 +100,30 @@ func TestMemKV_Set(t *testing.T) {
 func TestMemKV_Contains(t *testing.T) {
 	kvs := memkv.NewMemKV(".", &memkv.Opts{CaseInsensitive: true})
 	kvs.Set("TestKey", 42)
-	kvs.Set("TestKey.path", 100)
 	if !kvs.Contains("TestKey") || !kvs.Contains("testkey") {
 		t.Error("contains failed")
+	}
+}
+
+func TestMemKV_AddWatcherHook(t *testing.T) {
+	kvs := memkv.NewMemKV(".", nil)
+	var gotWrite, gotRead int
+
+	readHookFn := func(e memkv.Event) {
+		gotRead += 1
+	}
+	writeHookFn := func(e memkv.Event) {
+		gotWrite += 1
+	}
+
+	kvs.AddWatcherHook("TestKey", readHookFn, []memkv.EventType{memkv.E_KEY_ACCESSED})
+	kvs.AddWatcherHook("TestKey", writeHookFn, []memkv.EventType{memkv.E_KEY_CREATED, memkv.E_KEY_UPDATED})
+
+	kvs.Set("TestKey", 42)
+	kvs.Set("TestKey", 100)
+	kvs.Get("TestKey")
+
+	if gotWrite != 2 || gotRead != 1 {
+		t.Error("Unexpected access numbers")
 	}
 }
