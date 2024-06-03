@@ -1,7 +1,6 @@
 package kdf
 
 import (
-	cryptorand "crypto/rand"
 	"crypto/sha512"
 	"crypto/subtle"
 	"encoding/base64"
@@ -9,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/amazon-ion/ion-go/ion"
+	"github.com/stateprism/libprisma/cryptoutil"
 	"golang.org/x/crypto/pbkdf2"
 	"hash"
 	"reflect"
@@ -17,18 +17,6 @@ import (
 
 type Hash []byte
 type Salt []byte
-
-// NewSalt generates a random salt of the specified length and returns it as a Salt type. If an error occurs
-// while generating the salt or the generated salt length does not match the specified length, a panic is raised
-// with an error message.
-func NewSalt(l int) Salt {
-	salt := make([]byte, l)
-	n, err := cryptorand.Read(salt)
-	if n != l || err != nil {
-		panic("Error getting salt!, check your OS")
-	}
-	return salt
-}
 
 // Pbkdf2Key represents a key derived using the PBKDF2 algorithm. It contains the following fields:
 // - Hash: The derived key
@@ -135,7 +123,7 @@ func (*Pbkdf2Key) FromBytes(b []byte) (Key, error) {
 }
 
 func (*Pbkdf2Key) Key(value string, iter int, keyLen int, h func() hash.Hash) Key {
-	salt := NewSalt(8)
+	salt := cryptoutil.NewRandom(8)
 	hName := reflect.TypeOf(h())
 	key := pbkdf2.Key([]byte(value), salt, iter, keyLen, h)
 	return &Pbkdf2Key{

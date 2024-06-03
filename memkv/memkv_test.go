@@ -127,3 +127,68 @@ func TestMemKV_AddWatcherHook(t *testing.T) {
 		t.Error("Unexpected access numbers")
 	}
 }
+
+func TestMemKV_Drop(t *testing.T) {
+	tests := []struct {
+		Name            string
+		SetupKeys       []expectedValues
+		DropKey         string
+		LookUp          string
+		DeleteKeySpaces bool
+		ExpectedSuccess bool
+	}{
+		{
+			Name: "Drop simple key",
+			SetupKeys: []expectedValues{
+				{k: "testKey", v: 123},
+			},
+			DropKey:         "testKey",
+			DeleteKeySpaces: false,
+			ExpectedSuccess: true,
+		},
+		{
+			Name: "Drop leaf key",
+			SetupKeys: []expectedValues{
+				{k: "Some.test.path", v: 42},
+			},
+			DropKey:         "Some.test.path",
+			DeleteKeySpaces: false,
+			ExpectedSuccess: true,
+		},
+		{
+			Name: "Ignore drop key space",
+			SetupKeys: []expectedValues{
+				{k: "Some.test.path", v: 42},
+			},
+			DropKey:         "Some.test",
+			DeleteKeySpaces: false,
+			ExpectedSuccess: false,
+		},
+		{
+			Name: "Drop key space",
+			SetupKeys: []expectedValues{
+				{k: "Some.test.path.withLeaf", v: 42},
+			},
+			DropKey:         "Some.test",
+			LookUp:          "Some.test.path",
+			DeleteKeySpaces: true,
+			ExpectedSuccess: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.Name, func(t *testing.T) {
+			kvs := memkv.NewMemKV(".", nil)
+			for _, e := range tt.SetupKeys {
+				kvs.Set(e.k, e.v)
+			}
+			success := kvs.Drop(tt.DropKey, tt.DeleteKeySpaces)
+			if success != tt.ExpectedSuccess {
+				t.Errorf("Unexpected drop result, got %v, want %v", success, tt.ExpectedSuccess)
+			}
+			if tt.ExpectedSuccess && kvs.Contains(tt.DropKey) {
+				t.Error("Key is not dropped")
+			}
+		})
+	}
+}

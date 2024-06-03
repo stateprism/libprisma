@@ -4,7 +4,7 @@ import (
 	"crypto/sha512"
 	"fmt"
 	"github.com/google/go-cmp/cmp"
-	"github.com/stateprism/libprisma/crypto/kdf"
+	"github.com/stateprism/libprisma/cryptoutil/kdf"
 	"hash"
 	"testing"
 )

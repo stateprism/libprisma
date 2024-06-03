@@ -47,6 +47,10 @@ type MemKV struct {
 	watchers  map[string][]eHandler
 }
 
+// NewMemKV returns a new instance of MemKV with the specified separator and options.
+// If opts is nil, default options are used. If CaseInsensitive option is set to true,
+// the keys are treated as case-insensitive.
+// If a key contains sep, then it's treated as a path to a nested key
 func NewMemKV(sep string, opts *Opts) *MemKV {
 	s := &MemKV{
 		l:         sync.RWMutex{},
@@ -152,6 +156,50 @@ func (m *MemKV) Set(key string, val any) bool {
 	return true
 }
 
+func (m *MemKV) Contains(key string) bool {
+	_, ok := m.Get(key)
+	return ok
+}
+
+// Drop deletes a key-value pair from the MemKV instance.
+// It returns true if the key exists and was successfully deleted,
+// and false otherwise. If deleteKeySpaces is true and the value of
+// the key is a KeySpace type, the entire key space is deleted.
+func (m *MemKV) Drop(key string, deleteKeySpaces bool) bool {
+	if !strings.Contains(key, m.sep) {
+		delete(m.m, key)
+		return true
+	}
+	if !m.Contains(key) {
+		return false
+	}
+	if m.IsKeySpace(key) {
+		if !deleteKeySpaces {
+			return false
+		}
+	}
+	keys := strings.Split(key, m.sep)
+	path := strings.Join(keys[:len(keys)-1], m.sep)
+	key = keys[len(keys)-1]
+	parent, _ := m.Get(path)
+	m.l.Lock()
+	defer m.l.Unlock()
+	delete(parent.(map[string]any), key)
+	return true
+}
+
+func (m *MemKV) IsKeySpace(key string) bool {
+	v, ok := m.Get(key)
+	if !ok {
+		return false
+	}
+	if _, ok := v.(map[string]any); ok {
+		return true
+	}
+
+	return false
+}
+
 func (m *MemKV) dispatchWatchers(e Event) {
 	var wg sync.WaitGroup
 	for _, w := range m.watchers[e.Key] {
@@ -185,9 +233,4 @@ func (m *MemKV) AddWatcherHook(key string, hook WatchHook, eFilter []EventType) 
 	} else {
 		m.watchers[key] = append(m.watchers[key], handler)
 	}
-}
-
-func (m *MemKV) Contains(key string) bool {
-	_, ok := m.Get(key)
-	return ok
 }
