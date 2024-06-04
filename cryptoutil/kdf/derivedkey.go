@@ -11,4 +11,6 @@ type Key interface {
 	// Equals given the Key it's called on and a string, make a new Key with the same params as the referenced Key
 	// and compare them in constant time
 	Equals(other string) bool
+	GetKey() []byte
+	GetSalt() []byte
 }

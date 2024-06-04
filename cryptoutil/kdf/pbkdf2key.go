@@ -34,7 +34,7 @@ type Pbkdf2Key struct {
 	HashType string
 }
 
-var PbKdf2 = &Pbkdf2Key{}
+var PbKdf2 = Pbkdf2Key{}
 
 func (d *Pbkdf2Key) Equals(other string) bool {
 	otherKey := pbkdf2.Key([]byte(other), d.Salt, int(d.Iter), int(d.KeyLen), sha512.New)
@@ -114,7 +114,7 @@ func (d *Pbkdf2Key) Bytes() []byte {
 
 // FromBytes decodes a byte slice into a Pbkdf2Key object by unmarshaling it using the ion.Unmarshal function.
 // If an error occurs during the unmarshaling process, nil and false are returned.
-func (*Pbkdf2Key) FromBytes(b []byte) (Key, error) {
+func (Pbkdf2Key) FromBytes(b []byte) (Key, error) {
 	var k = &Pbkdf2Key{}
 	if err := ion.Unmarshal(b, k); err != nil {
 		return nil, err
@@ -122,10 +122,22 @@ func (*Pbkdf2Key) FromBytes(b []byte) (Key, error) {
 	return k, nil
 }
 
-func (*Pbkdf2Key) Key(value string, iter int, keyLen int, h func() hash.Hash) Key {
+func (Pbkdf2Key) KeyFromStr(value string, iter int, keyLen int, h func() hash.Hash) Key {
+	return PbKdf2.Key([]byte(value), iter, keyLen, h)
+}
+
+func (d *Pbkdf2Key) GetKey() []byte {
+	return d.Hash
+}
+
+func (d *Pbkdf2Key) GetSalt() []byte {
+	return d.Salt
+}
+
+func (Pbkdf2Key) Key(value []byte, iter int, keyLen int, h func() hash.Hash) Key {
 	salt := cryptoutil.NewRandom(8)
 	hName := reflect.TypeOf(h())
-	key := pbkdf2.Key([]byte(value), salt, iter, keyLen, h)
+	key := pbkdf2.Key(value, salt, iter, keyLen, h)
 	return &Pbkdf2Key{
 		Hash:     key,
 		Salt:     salt,

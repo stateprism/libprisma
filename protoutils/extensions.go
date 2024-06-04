@@ -16,7 +16,7 @@ func (e *Extensions) SetExtensionsRoot() {
 
 func (e *Extensions) Get(key string) (interface{}, bool, error) {
 	if e.IsEmpty {
-		return nil, false, fmt.Errorf("Extensions is empty")
+		return nil, false, fmt.Errorf("extensions is empty")
 	}
 
 	if val, ok := e.Extensions[key]; ok {

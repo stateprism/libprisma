@@ -187,7 +187,7 @@ func TestMemKV_Drop(t *testing.T) {
 				t.Errorf("Unexpected drop result, got %v, want %v", success, tt.ExpectedSuccess)
 			}
 			if tt.ExpectedSuccess && kvs.Contains(tt.DropKey) {
-				t.Error("Key is not dropped")
+				t.Error("KeyFromStr is not dropped")
 			}
 		})
 	}

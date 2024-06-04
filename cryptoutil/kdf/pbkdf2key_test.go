@@ -13,7 +13,7 @@ func TestPbkdf2Key_Equals(t *testing.T) {
 	someKey := "SomeKey"
 	someKey2 := "SomeKey2"
 
-	someKeyKdf := kdf.PbKdf2.Key(someKey, 4096, 32, sha512.New)
+	someKeyKdf := kdf.PbKdf2.KeyFromStr(someKey, 4096, 32, sha512.New)
 
 	if !someKeyKdf.Equals(someKey) {
 		t.Error("Failed to properly compare keys")
@@ -24,11 +24,11 @@ func TestPbkdf2Key_Equals(t *testing.T) {
 
 func TestParsePbkdf2KeyFromString(t *testing.T) {
 	someKey := "SomeKey"
-	someKeyKdf := kdf.PbKdf2.Key(someKey, 4096, 32, sha512.New)
+	someKeyKdf := kdf.PbKdf2.KeyFromStr(someKey, 4096, 32, sha512.New)
 	someKeyStr := fmt.Sprintf("%s", someKeyKdf)
 	v, _ := kdf.PbKdf2.FromString(someKeyStr)
 	if !cmp.Equal(someKeyKdf, v) {
-		t.Error("Decoded Key object from string doesn't match the original")
+		t.Error("Decoded KeyFromStr object from string doesn't match the original")
 	}
 }
 
@@ -42,21 +42,21 @@ func TestPbKdf2KeyBytes(t *testing.T) {
 	}{
 		{
 			name: "ValidKey1",
-			key:  "Some Key",
+			key:  "Some KeyFromStr",
 			iter: 4096,
 			len:  32,
 			hash: sha512.New,
 		},
 		{
 			name: "ValidKey2",
-			key:  "Another Key",
+			key:  "Another KeyFromStr",
 			iter: 8192,
 			len:  64,
 			hash: sha512.New,
 		},
 		{
 			name: "ValidKey3",
-			key:  "Yet Another Key",
+			key:  "Yet Another KeyFromStr",
 			iter: 4096,
 			len:  32,
 			hash: sha512.New,
@@ -65,7 +65,7 @@ func TestPbKdf2KeyBytes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			someKeyKdf := kdf.PbKdf2.Key(tt.key, tt.iter, tt.len, tt.hash)
+			someKeyKdf := kdf.PbKdf2.KeyFromStr(tt.key, tt.iter, tt.len, tt.hash)
 			bytes := someKeyKdf.Bytes()
 
 			v, err := kdf.PbKdf2.FromBytes(bytes)
