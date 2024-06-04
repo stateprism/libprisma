@@ -7,3 +7,5 @@ require (
 	github.com/google/go-cmp v0.6.0
 	golang.org/x/crypto v0.23.0
 )
+
+require google.golang.org/protobuf v1.34.1 // indirect
