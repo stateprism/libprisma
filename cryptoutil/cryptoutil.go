@@ -37,7 +37,8 @@ func Pad(data []byte, blockSize int) ([]byte, error) {
 	for i := 0; i < neededPadding; i++ {
 		padding[i] = byte(neededPadding)
 	}
-	return append(data, padding...), nil
+	data = append(data, padding...)
+	return data, nil
 }
 
 func Unpad(data []byte, blockSize int) ([]byte, error) {

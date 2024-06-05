@@ -1,7 +1,7 @@
 package memkv
 
 import (
-	"fmt"
+	"errors"
 	"slices"
 	"strings"
 	"sync"
@@ -69,6 +69,30 @@ func NewMemKV(sep string, opts *Opts) *MemKV {
 	}
 
 	return s
+}
+
+func (m *MemKV) GetSerializableMap() map[string]any {
+	return map[string]any{
+		"__data": m.m,
+		"__meta": map[string]any{
+			"__serializedProtocol": 1,
+			"caseSensitive":        m.caseSense,
+			"separator":            m.sep,
+		},
+	}
+}
+
+func (m *MemKV) LoadFromSerializableMap(data map[string]any) error {
+	m.l.Lock()
+	defer m.l.Unlock()
+	meta, ok := data["__meta"].(map[string]any)
+	if !ok {
+		return errors.New("meta data not found")
+	}
+	m.sep = meta["separator"].(string)
+	m.caseSense = meta["caseSensitive"].(bool)
+	m.m = data["__data"].(map[string]any)
+	return nil
 }
 
 func (m *MemKV) Get(key string) (any, bool) {
@@ -212,7 +236,6 @@ func (m *MemKV) dispatchWatchers(e Event) {
 		}
 	}
 	wg.Wait()
-	fmt.Println("done")
 }
 
 func (m *MemKV) AddWatcherHook(key string, hook WatchHook, eFilter []EventType) {

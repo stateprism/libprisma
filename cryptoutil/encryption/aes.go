@@ -8,20 +8,32 @@ import (
 	"github.com/stateprism/libprisma/cryptoutil/kdf"
 )
 
+type EncryptionError int
+
+const (
+	ErrInvalidKeyLength EncryptionError = iota
+)
+
+func (e EncryptionError) Error() string {
+	switch e {
+	case ErrInvalidKeyLength:
+		return "invalid key length"
+	default:
+		return "unknown error"
+	}
+}
+
 type SecureAES struct {
-	iv    []byte
-	nonce []byte
-	key   []byte
-	salt  []byte
-	iAes  cipher.Block
-	enc   cipher.BlockMode
-	dec   cipher.BlockMode
+	iv   []byte
+	key  []byte
+	iAes cipher.Block
+	enc  cipher.BlockMode
+	dec  cipher.BlockMode
 }
 
 func NewSecureAES(key []byte) (*SecureAES, error) {
 	derived := kdf.PbKdf2.Key(key, 4096, 32, sha512.New)
 	key = derived.GetKey()
-	salt := derived.GetSalt()
 	iv := cryptoutil.NewRandom(aes.BlockSize)
 
 	bc, err := aes.NewCipher(key)
@@ -34,50 +46,83 @@ func NewSecureAES(key []byte) (*SecureAES, error) {
 	return &SecureAES{
 		iv:   iv,
 		key:  key,
-		salt: salt,
 		iAes: bc,
 		enc:  enc,
 		dec:  dec,
 	}, nil
 }
 
-func (s *SecureAES) EncryptInPlace(data []byte) error {
-	// Ensure that the data is a multiple of the block size
-	if len(data)%aes.BlockSize != 0 {
-		data, _ = cryptoutil.Pad(data, aes.BlockSize)
+func NewSecureAESWithSafeKey(key []byte) (*SecureAES, error) {
+	iv := cryptoutil.NewRandom(aes.BlockSize)
+	if len(key) != 32 {
+		return nil, ErrInvalidKeyLength
 	}
-	blocks := len(data) / aes.BlockSize
-	for i := range blocks {
-		s.enc.CryptBlocks(data[i*aes.BlockSize:], data[i*aes.BlockSize:])
+
+	bc, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, err
 	}
-	return nil
+	enc := cipher.NewCBCEncrypter(bc, iv)
+	dec := cipher.NewCBCDecrypter(bc, iv)
+
+	return &SecureAES{
+		iv:   iv,
+		key:  key,
+		iAes: bc,
+		enc:  enc,
+		dec:  dec,
+	}, nil
 }
 
-func (s *SecureAES) DecryptInPlace(data []byte, plain []byte) error {
-	blocks := len(data) / aes.BlockSize
-	for i := range blocks {
-		s.dec.CryptBlocks(plain[i*aes.BlockSize:], data[i*aes.BlockSize:])
+func (s *SecureAES) GetKey() []byte {
+	return s.key
+}
+
+func (s *SecureAES) GetIV() []byte {
+	return s.iv
+}
+
+func (s *SecureAES) SetIV(iv []byte) bool {
+	if len(iv) != aes.BlockSize {
+		return false
 	}
-	data, err := cryptoutil.Unpad(data, aes.BlockSize)
-	if err != nil {
-		return err
-	}
-	return nil
+	s.iv = iv
+	s.enc = cipher.NewCBCEncrypter(s.iAes, iv)
+	s.dec = cipher.NewCBCDecrypter(s.iAes, iv)
+	return true
 }
 
 func (s *SecureAES) Encrypt(data []byte) ([]byte, error) {
 	// Ensure that the data is a multiple of the block size
-	if len(data)%aes.BlockSize != 0 {
-		data, _ = cryptoutil.Pad(data, aes.BlockSize)
+	out := make([]byte, len(data)+(aes.BlockSize-len(data)%aes.BlockSize))
+	outBlocker := cryptoutil.NewBlocker(aes.BlockSize, out)
+	blocker := cryptoutil.NewBlocker(aes.BlockSize, data)
+	for {
+		_, encrypted := outBlocker.Next()
+		n, block := blocker.Next()
+		if n == 0 {
+			break
+		}
+		if n < aes.BlockSize {
+			block, _ = cryptoutil.Pad(block, aes.BlockSize)
+		}
+		s.enc.CryptBlocks(encrypted, block)
 	}
-	encrypted := make([]byte, len(data))
-	s.enc.CryptBlocks(encrypted, data)
-	return encrypted, nil
+	return out, nil
 }
 
 func (s *SecureAES) Decrypt(data []byte) ([]byte, error) {
 	decrypted := make([]byte, len(data))
-	s.dec.CryptBlocks(decrypted, data)
+	decryptedBlocker := cryptoutil.NewBlocker(aes.BlockSize, decrypted)
+	blocker := cryptoutil.NewBlocker(aes.BlockSize, data)
+	for {
+		_, decrypted := decryptedBlocker.Next()
+		n, block := blocker.Next()
+		if n == 0 {
+			break
+		}
+		s.dec.CryptBlocks(decrypted, block)
+	}
 	decrypted, err := cryptoutil.Unpad(decrypted, aes.BlockSize)
 	if err != nil {
 		return nil, err
