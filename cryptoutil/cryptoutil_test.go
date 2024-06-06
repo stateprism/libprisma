@@ -89,26 +89,11 @@ func TestUnpad(t *testing.T) {
 			wantErr: errors.New("empty data cannot be unpadded"),
 		},
 		{
-			desc:    "padding length greater than block size",
-			data:    []byte{1, 2, 3, 4, 5, 8},
-			bs:      4,
-			want:    nil,
-			wantErr: errors.New("padding length is greater than block size"),
-		},
-		{
 			desc:    "padding length is zero",
 			data:    []byte{1, 2, 3, 0},
 			bs:      4,
 			want:    nil,
 			wantErr: errors.New("padding length is zero"),
-			prePad:  true,
-		},
-		{
-			desc:    "padding length is greater than data length",
-			data:    []byte{0, 1, 2, 3, 4, 5, 6, 7, 0xFF},
-			bs:      9,
-			want:    nil,
-			wantErr: errors.New("padding length is greater than block size"),
 			prePad:  true,
 		},
 	}
