@@ -17,12 +17,13 @@ func main() {
 		panic(err)
 	}
 	encrypted, err := secureAES.Encrypt(data)
+	tag := secureAES.Finish()
 	if err != nil {
 		panic(err)
 	}
 	fmt.Println("Encrypted:", base64.StdEncoding.EncodeToString(encrypted))
 
-	decrypted, err := secureAES.Decrypt(encrypted)
+	decrypted, err := secureAES.Decrypt(encrypted, tag)
 	if err != nil {
 		panic(err)
 	}

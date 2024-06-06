@@ -52,7 +52,7 @@ func Unpad(data []byte, blockSize int) ([]byte, error) {
 	padLen := int(data[len(data)-1])
 	// look at the last half of the data
 	if padLen > blockSize {
-		return nil, fmt.Errorf("padding length is greater than block size")
+		return data, nil
 	} else if padLen == 0 {
 		return nil, fmt.Errorf("padding length is zero")
 	} else if padLen > len(data) {

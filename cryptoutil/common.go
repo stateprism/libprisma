@@ -26,3 +26,14 @@ func (b *Blocker) Next() (int, []byte) {
 	b.last++
 	return last - first, b.buff[first:last]
 }
+
+func SecureCompare(tag []byte, finish []byte) bool {
+	if len(tag) != len(finish) {
+		return false
+	}
+	var res byte
+	for i := 0; i < len(tag); i++ {
+		res ^= tag[i] ^ finish[i]
+	}
+	return res == 0
+}

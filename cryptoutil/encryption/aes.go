@@ -4,8 +4,10 @@ import (
 	aes "crypto/aes"
 	"crypto/cipher"
 	"crypto/sha512"
+	"errors"
 	"github.com/stateprism/libprisma/cryptoutil"
 	"github.com/stateprism/libprisma/cryptoutil/kdf"
+	"hash"
 )
 
 type EncryptionError int
@@ -29,19 +31,21 @@ type SecureAES struct {
 	iAes cipher.Block
 	enc  cipher.BlockMode
 	dec  cipher.BlockMode
+	h    hash.Hash
 }
 
 func NewSecureAES(key []byte) (*SecureAES, error) {
 	derived := kdf.PbKdf2.Key(key, 4096, 32, sha512.New)
 	key = derived.GetKey()
 	iv := cryptoutil.NewRandom(aes.BlockSize)
-
 	bc, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, err
 	}
 	enc := cipher.NewCBCEncrypter(bc, iv)
 	dec := cipher.NewCBCDecrypter(bc, iv)
+	h := sha512.New()
+	h.Write(key)
 
 	return &SecureAES{
 		iv:   iv,
@@ -49,6 +53,7 @@ func NewSecureAES(key []byte) (*SecureAES, error) {
 		iAes: bc,
 		enc:  enc,
 		dec:  dec,
+		h:    h,
 	}, nil
 }
 
@@ -64,6 +69,7 @@ func NewSecureAESWithSafeKey(key []byte) (*SecureAES, error) {
 	}
 	enc := cipher.NewCBCEncrypter(bc, iv)
 	dec := cipher.NewCBCDecrypter(bc, iv)
+	h := sha512.New()
 
 	return &SecureAES{
 		iv:   iv,
@@ -71,6 +77,7 @@ func NewSecureAESWithSafeKey(key []byte) (*SecureAES, error) {
 		iAes: bc,
 		enc:  enc,
 		dec:  dec,
+		h:    h,
 	}, nil
 }
 
@@ -93,7 +100,8 @@ func (s *SecureAES) SetIV(iv []byte) bool {
 }
 
 func (s *SecureAES) Encrypt(data []byte) ([]byte, error) {
-	// Ensure that the data is a multiple of the block size
+	s.h.Reset()
+	s.h.Write(s.key)
 	out := make([]byte, len(data)+(aes.BlockSize-len(data)%aes.BlockSize))
 	outBlocker := cryptoutil.NewBlocker(aes.BlockSize, out)
 	blocker := cryptoutil.NewBlocker(aes.BlockSize, data)
@@ -107,11 +115,36 @@ func (s *SecureAES) Encrypt(data []byte) ([]byte, error) {
 			block, _ = cryptoutil.Pad(block, aes.BlockSize)
 		}
 		s.enc.CryptBlocks(encrypted, block)
+		s.h.Write(block)
 	}
 	return out, nil
 }
 
-func (s *SecureAES) Decrypt(data []byte) ([]byte, error) {
+func (s *SecureAES) Finish() []byte {
+	var tag []byte
+	tag = s.h.Sum(tag)
+	s.h.Reset()
+	return tag
+}
+
+func (s *SecureAES) GetTagSize() int {
+	return s.h.Size()
+}
+
+func (s *SecureAES) GetIvSize() int {
+	return s.iAes.BlockSize()
+}
+
+func (s *SecureAES) TagPlusIVSize() int {
+	return s.iAes.BlockSize() + s.h.Size()
+}
+
+func (s *SecureAES) Decrypt(data []byte, tag []byte) ([]byte, error) {
+	if len(tag) != s.h.Size() {
+		return nil, errors.New("tag size mismatch")
+	}
+	s.h.Reset()
+	s.h.Write(s.key)
 	decrypted := make([]byte, len(data))
 	decryptedBlocker := cryptoutil.NewBlocker(aes.BlockSize, decrypted)
 	blocker := cryptoutil.NewBlocker(aes.BlockSize, data)
@@ -122,10 +155,14 @@ func (s *SecureAES) Decrypt(data []byte) ([]byte, error) {
 			break
 		}
 		s.dec.CryptBlocks(decrypted, block)
+		s.h.Write(decrypted)
 	}
 	decrypted, err := cryptoutil.Unpad(decrypted, aes.BlockSize)
 	if err != nil {
 		return nil, err
+	}
+	if !cryptoutil.SecureCompare(tag, s.Finish()) {
+		return nil, errors.New("tag mismatch")
 	}
 	return decrypted, nil
 }
