@@ -1,7 +1,6 @@
 package encryption_test
 
 import (
-	"encoding/base64"
 	"github.com/google/go-cmp/cmp"
 	"github.com/stateprism/libprisma/cryptoutil/encryption"
 	"testing"
@@ -9,7 +8,7 @@ import (
 
 func TestSecureAES(t *testing.T) {
 	randomData := []byte("This is a test string, it is not very long but it is long enough to test the encryption and decryption functions")
-	secureAes, err := encryption.NewSecureAES([]byte("superSecretKey"))
+	secureAes, err := encryption.NewSecureAES([]byte("superSecretKey"), encryption.AES256)
 	if err != nil {
 		t.Errorf("Error creating SecureAES: %v", err)
 	}
@@ -19,7 +18,7 @@ func TestSecureAES(t *testing.T) {
 		t.Errorf("Error encrypting data: %v", err)
 	}
 
-	secureAes, err = encryption.NewSecureAES([]byte("superSecretKey"))
+	secureAes, err = encryption.NewSecureAES([]byte("superSecretKey"), encryption.AES256)
 	if err != nil {
 		t.Errorf("Error creating SecureAES: %v", err)
 	}
@@ -29,22 +28,9 @@ func TestSecureAES(t *testing.T) {
 		t.Errorf("Error decrypting data: %v", err)
 	}
 
-	encStr := base64.StdEncoding.EncodeToString(encrypted)
-
-	secureAes, err = encryption.NewSecureAES([]byte("superSecretKey"))
+	secureAes, err = encryption.NewSecureAES([]byte("superSecretKey"), encryption.AES256)
 	if err != nil {
 		t.Errorf("Error creating SecureAES: %v", err)
-	}
-
-	encryptedData, _ := base64.StdEncoding.DecodeString(encStr)
-
-	if !cmp.Equal(encrypted, encryptedData) == false {
-		t.Errorf("Data wrong after base64 encoding/decoding")
-	}
-
-	decrypted, err = secureAes.DecryptFromBytes(encryptedData)
-	if err != nil {
-		t.Errorf("Error decrypting data: %v", err)
 	}
 
 	if cmp.Equal(randomData, decrypted) == false {

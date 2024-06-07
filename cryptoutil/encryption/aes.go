@@ -4,7 +4,7 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/sha256"
-	"errors"
+	"crypto/sha512"
 	"github.com/stateprism/libprisma/cryptoutil"
 	"golang.org/x/crypto/pbkdf2"
 	"hash"
@@ -18,21 +18,6 @@ const (
 	AES256 AESSize = 32
 )
 
-type EncryptionError int
-
-const (
-	ErrInvalidKeyLength EncryptionError = iota
-)
-
-func (e EncryptionError) Error() string {
-	switch e {
-	case ErrInvalidKeyLength:
-		return "invalid key length"
-	default:
-		return "unknown error"
-	}
-}
-
 type SecureAES struct {
 	iv   []byte
 	key  []byte
@@ -45,7 +30,7 @@ type SecureAES struct {
 // NewSecureAES creates a new SecureAES object with the given key
 // The key will be used to seed a chacha8 CSPRNG to generate a salt for the key derivation function,
 // in this case, PBKDF2 with 4096 iterations and a key length of 32 bytes for AES-256
-func NewSecureAES(key []byte, aesSize AESSize) (*SecureAES, error) {
+func NewSecureAES(key []byte, aesSize AESSize) (SecureCypher, error) {
 	keyDerivedSalt := cryptoutil.SeededRandomData(key, 32)
 	key = pbkdf2.Key(key, keyDerivedSalt, 4096, int(aesSize), sha256.New)
 	iv := cryptoutil.NewRandom(aes.BlockSize)
@@ -78,18 +63,22 @@ func (s *SecureAES) GetIV() []byte {
 	return s.iv
 }
 
-func (s *SecureAES) SetIV(iv []byte) bool {
+func (s *SecureAES) SetIV(iv []byte) {
 	if len(iv) != aes.BlockSize {
-		return false
+		panic("invalid IV size")
 	}
 	s.iv = iv
 	s.enc = cipher.NewCBCEncrypter(s.iAes, iv)
 	s.dec = cipher.NewCBCDecrypter(s.iAes, iv)
-	return true
 }
 
 func (s *SecureAES) Encrypt(data []byte) ([]byte, error) {
-	out := make([]byte, len(data)+len(data)%aes.BlockSize)
+	var out []byte
+	if len(data) > aes.BlockSize {
+		out = make([]byte, len(data)+len(data)%aes.BlockSize)
+	} else {
+		out = make([]byte, aes.BlockSize)
+	}
 	outBlocker := cryptoutil.NewBlocker(aes.BlockSize, out)
 	blocker := cryptoutil.NewBlocker(aes.BlockSize, data)
 	for {
@@ -107,12 +96,7 @@ func (s *SecureAES) Encrypt(data []byte) ([]byte, error) {
 	return out, nil
 }
 
-func (s *SecureAES) Decrypt(data []byte, tag []byte) ([]byte, error) {
-	if len(tag) != s.GetTagSize() {
-		return nil, errors.New("tag size mismatch")
-	}
-	// Reset the tag calculation
-	s.Reset()
+func (s *SecureAES) Decrypt(data []byte) ([]byte, error) {
 	decrypted := make([]byte, len(data))
 	decryptedBlocker := cryptoutil.NewBlocker(aes.BlockSize, decrypted)
 	blocker := cryptoutil.NewBlocker(aes.BlockSize, data)
@@ -129,10 +113,6 @@ func (s *SecureAES) Decrypt(data []byte, tag []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	calculatedTag := s.GetTag()
-	if !cryptoutil.SecureCompare(tag, calculatedTag) {
-		return nil, errors.New("tag mismatch")
-	}
 	return decrypted, nil
 }
 
@@ -141,6 +121,18 @@ func (s *SecureAES) GetTag() []byte {
 	var tag []byte
 	tag = s.h.Sum(tag)
 	return tag
+}
+
+// GetKeyThumbprint returns the thumbprint of the key currently loaded in the SecureAES object as a SHA-512 hash
+func (s *SecureAES) GetKeyThumbprint() []byte {
+	h := sha512.New()
+	h.Write(s.key)
+	return h.Sum(nil)
+}
+
+// CheckKeyThumbprint checks if the given thumbprint matches the thumbprint of the key currently loaded in the SecureAES object
+func (s *SecureAES) CheckKeyThumbprint(thumbprint []byte) bool {
+	return cryptoutil.SecureCompare(thumbprint, s.GetKeyThumbprint())
 }
 
 func (s *SecureAES) GetTagSize() int {
@@ -201,10 +193,16 @@ func (s *SecureAES) DecryptFromBytes(data []byte) ([]byte, error) {
 	copy(iv, tagIv[:s.GetIvSize()])
 	copy(tag, tagIv[s.GetIvSize():])
 	s.SetIV(iv)
+	s.Reset()
 
-	decrypted, err := s.Decrypt(encrypted, tag)
+	decrypted, err := s.Decrypt(encrypted)
 	if err != nil {
 		return nil, err
 	}
+
+	if !cryptoutil.SecureCompare(tag, s.GetTag()) {
+		return nil, ErrTagMismatch
+	}
+
 	return decrypted, nil
 }

@@ -46,6 +46,39 @@ func SecureCompare(tag []byte, finish []byte) bool {
 	return res == 0
 }
 
+type SeededPRNG struct {
+	iter uint64
+	rand *rand.Rand
+}
+
+func NewSeededPRNG(seed []byte, discard uint) *SeededPRNG {
+	h := sha256.New()
+	h.Write(seed)
+	seed = h.Sum(seed)
+	g := &SeededPRNG{
+		iter: 0,
+		rand: rand.New(rand.NewChaCha8([32]byte(seed))),
+	}
+	if discard > 0 {
+		for _ = range discard {
+			g.rand.Uint64()
+		}
+	}
+	return g
+}
+
+func (g *SeededPRNG) GetBytes(n int) []byte {
+	out := make([]byte, n)
+	g.FillBuffer(out)
+	return out
+}
+
+func (g *SeededPRNG) FillBuffer(buff []byte) {
+	for i := range buff {
+		buff[i] = byte(g.rand.UintN(256))
+	}
+}
+
 func SeededRandomData(seed []byte, n int) []byte {
 	h := sha256.New()
 	h.Write(seed)
