@@ -7,7 +7,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"github.com/amazon-ion/ion-go/ion"
 	"github.com/stateprism/libprisma/cryptoutil"
 	"golang.org/x/crypto/pbkdf2"
 	"hash"
@@ -102,24 +101,6 @@ func (*Pbkdf2Key) FromString(s string) (Key, error) {
 		KeyLen:   keyLen,
 		HashType: parts[1],
 	}, nil
-}
-
-// Bytes returns the byte representation of the Pbkdf2Key object by marshaling
-// it using the ion.MarshalBinary function. If an error occurs during the
-// marshaling process, an empty byte slice is returned.
-func (d *Pbkdf2Key) Bytes() []byte {
-	b, _ := ion.MarshalBinary(d)
-	return b
-}
-
-// FromBytes decodes a byte slice into a Pbkdf2Key object by unmarshaling it using the ion.Unmarshal function.
-// If an error occurs during the unmarshaling process, nil and false are returned.
-func (Pbkdf2Key) FromBytes(b []byte) (Key, error) {
-	var k = &Pbkdf2Key{}
-	if err := ion.Unmarshal(b, k); err != nil {
-		return nil, err
-	}
-	return k, nil
 }
 
 func (Pbkdf2Key) KeyFromStr(value string, iter int, keyLen int, h func() hash.Hash) Key {

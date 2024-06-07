@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/google/go-cmp/cmp"
 	"github.com/stateprism/libprisma/cryptoutil/kdf"
-	"hash"
 	"testing"
 )
 
@@ -29,51 +28,5 @@ func TestParsePbkdf2KeyFromString(t *testing.T) {
 	v, _ := kdf.PbKdf2.FromString(someKeyStr)
 	if !cmp.Equal(someKeyKdf, v) {
 		t.Error("Decoded KeyFromStr object from string doesn't match the original")
-	}
-}
-
-func TestPbKdf2KeyBytes(t *testing.T) {
-	tests := []struct {
-		name string
-		key  string
-		iter int
-		len  int
-		hash func() hash.Hash
-	}{
-		{
-			name: "ValidKey1",
-			key:  "Some KeyFromStr",
-			iter: 4096,
-			len:  32,
-			hash: sha512.New,
-		},
-		{
-			name: "ValidKey2",
-			key:  "Another KeyFromStr",
-			iter: 8192,
-			len:  64,
-			hash: sha512.New,
-		},
-		{
-			name: "ValidKey3",
-			key:  "Yet Another KeyFromStr",
-			iter: 4096,
-			len:  32,
-			hash: sha512.New,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			someKeyKdf := kdf.PbKdf2.KeyFromStr(tt.key, tt.iter, tt.len, tt.hash)
-			bytes := someKeyKdf.Bytes()
-
-			v, err := kdf.PbKdf2.FromBytes(bytes)
-			if err != nil {
-				t.Errorf("Failed to retrieve the value from bytes %s", err)
-			} else if someKeyKdf.String() != v.String() {
-				t.Errorf("Byte conversion failed original:\n\t%s\n\tdecoded:\n\t%s", someKeyKdf, v)
-			}
-		})
 	}
 }

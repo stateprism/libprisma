@@ -257,3 +257,11 @@ func (m *MemKV) AddWatcherHook(key string, hook WatchHook, eFilter []EventType) 
 		m.watchers[key] = append(m.watchers[key], handler)
 	}
 }
+
+func (m *MemKV) ImportMap(data map[string]any) {
+	m.l.Lock()
+	defer m.l.Unlock()
+	for k, v := range data {
+		m.m[k] = v
+	}
+}

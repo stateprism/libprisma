@@ -6,7 +6,16 @@ import (
 	"crypto/sha256"
 	"errors"
 	"github.com/stateprism/libprisma/cryptoutil"
+	"golang.org/x/crypto/pbkdf2"
 	"hash"
+)
+
+type AESSize int
+
+const (
+	AES128 AESSize = 16
+	AES192 AESSize = 24
+	AES256 AESSize = 32
 )
 
 type EncryptionError int
@@ -33,36 +42,13 @@ type SecureAES struct {
 	h    hash.Hash
 }
 
-func NewSecureAES(key []byte) (*SecureAES, error) {
-	key = cryptoutil.SeededRandomData(key, 32)
+// NewSecureAES creates a new SecureAES object with the given key
+// The key will be used to seed a chacha8 CSPRNG to generate a salt for the key derivation function,
+// in this case, PBKDF2 with 4096 iterations and a key length of 32 bytes for AES-256
+func NewSecureAES(key []byte, aesSize AESSize) (*SecureAES, error) {
+	keyDerivedSalt := cryptoutil.SeededRandomData(key, 32)
+	key = pbkdf2.Key(key, keyDerivedSalt, 4096, int(aesSize), sha256.New)
 	iv := cryptoutil.NewRandom(aes.BlockSize)
-	bc, err := aes.NewCipher(key)
-	if err != nil {
-		return nil, err
-	}
-	enc := cipher.NewCBCEncrypter(bc, iv)
-	dec := cipher.NewCBCDecrypter(bc, iv)
-	h := sha256.New()
-	s := &SecureAES{
-		iv:   iv,
-		key:  key,
-		iAes: bc,
-		enc:  enc,
-		dec:  dec,
-		h:    h,
-	}
-	// Reset the hash state to known state
-	s.Reset()
-
-	return s, nil
-}
-
-func NewSecureAESWithSafeKey(key []byte) (*SecureAES, error) {
-	iv := cryptoutil.NewRandom(aes.BlockSize)
-	if len(key) != 32 {
-		return nil, ErrInvalidKeyLength
-	}
-
 	bc, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, err

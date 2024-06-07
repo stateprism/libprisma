@@ -6,8 +6,6 @@ type Key interface {
 	String() string
 	// FromString read the string form of a Key into a Key implementer instance
 	FromString(string) (Key, error)
-	Bytes() []byte
-	FromBytes(b []byte) (Key, error)
 	// Equals given the Key it's called on and a string, make a new Key with the same params as the referenced Key
 	// and compare them in constant time
 	Equals(other string) bool
