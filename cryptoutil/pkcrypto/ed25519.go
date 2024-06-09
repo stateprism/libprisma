@@ -2,9 +2,9 @@ package pkcrypto
 
 import (
 	"crypto"
-	"crypto/ed25519"
 	"fmt"
 	"github.com/stateprism/libprisma/cryptoutil"
+	"golang.org/x/crypto/ed25519"
 	"hash"
 )
 
