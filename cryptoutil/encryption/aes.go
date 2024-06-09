@@ -75,7 +75,7 @@ func (s *SecureAES) SetIV(iv []byte) {
 func (s *SecureAES) Encrypt(data []byte) ([]byte, error) {
 	var out []byte
 	if len(data) > aes.BlockSize {
-		out = make([]byte, len(data)+len(data)%aes.BlockSize)
+		out = make([]byte, findNextDiv(len(data), aes.BlockSize))
 	} else {
 		out = make([]byte, aes.BlockSize)
 	}
@@ -205,4 +205,13 @@ func (s *SecureAES) DecryptFromBytes(data []byte) ([]byte, error) {
 	}
 
 	return decrypted, nil
+}
+
+func findNextDiv(n int, bs int) int {
+	for {
+		if n%bs == 0 {
+			return n
+		}
+		n += 1
+	}
 }
