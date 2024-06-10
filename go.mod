@@ -8,3 +8,5 @@ require (
 )
 
 require google.golang.org/protobuf v1.34.1
+
+require github.com/dustin/go-humanize v1.0.1 // indirect
