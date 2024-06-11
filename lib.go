@@ -16,6 +16,15 @@ func Err[T any](err error) Result[T] {
 	return Result[T]{err: err}
 }
 
+// May wraps a call to some function that returns value or err and creates a result
+func May[T any](v T, err error) Result[T] {
+	if err != nil {
+		return Err[T](err)
+	} else {
+		return Ok(v)
+	}
+}
+
 // ValueOrPanic returns T if there is no error, otherwise panics
 func (r Result[T]) ValueOrPanic() T {
 	if r.err != nil {
