@@ -29,11 +29,12 @@ type SecureAES struct {
 
 // NewSecureAES creates a new SecureAES object with the given key
 // The key will be used to seed a chacha8 CSPRNG to generate a salt for the key derivation function,
-// in this case, PBKDF2 with 4096 iterations and a key length of 32 bytes for AES-256
+// in this case, PBKDF2 with 4096 iterations and a key length of corresponding to aesSize
+// the original key is not stored in the SecureAES struct only the derived bytes
 func NewSecureAES(key []byte, aesSize AESSize) (SecureCypher, error) {
-	keyDerivedSalt := cryptoutil.SeededRandomData(key, 32)
+	keyDerivedSalt := cryptoutil.SeededRandomData(key, 64)
 	key = pbkdf2.Key(key, keyDerivedSalt, 4096, int(aesSize), sha256.New)
-	iv := cryptoutil.NewRandom(aes.BlockSize)
+	iv := cryptoutil.SeededRandomData(pbkdf2.Key(key, keyDerivedSalt, 4096, int(aesSize), sha256.New), aes.BlockSize)
 	bc, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, err
@@ -53,6 +54,10 @@ func NewSecureAES(key []byte, aesSize AESSize) (SecureCypher, error) {
 	s.Reset()
 
 	return s, nil
+}
+
+func (s *SecureAES) GetBlockSize() int {
+	return aes.BlockSize
 }
 
 func (s *SecureAES) GetKey() []byte {
@@ -75,7 +80,7 @@ func (s *SecureAES) SetIV(iv []byte) {
 func (s *SecureAES) Encrypt(data []byte) ([]byte, error) {
 	var out []byte
 	if len(data) > aes.BlockSize {
-		out = make([]byte, findNextDiv(len(data), aes.BlockSize))
+		out = make([]byte, FindNextDiv(len(data), aes.BlockSize))
 	} else {
 		out = make([]byte, aes.BlockSize)
 	}
@@ -205,13 +210,4 @@ func (s *SecureAES) DecryptFromBytes(data []byte) ([]byte, error) {
 	}
 
 	return decrypted, nil
-}
-
-func findNextDiv(n int, bs int) int {
-	for {
-		if n%bs == 0 {
-			return n
-		}
-		n += 1
-	}
 }
