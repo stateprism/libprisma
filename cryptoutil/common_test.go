@@ -2,7 +2,7 @@ package cryptoutil_test
 
 import (
 	"github.com/google/go-cmp/cmp"
-	"github.com/stateprism/libprisma/cryptoutil"
+	"github.com/xadaemon/libprisma/cryptoutil"
 	"testing"
 )
 

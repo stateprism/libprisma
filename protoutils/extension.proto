@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-option go_package = "github.com/stateprism/prisma_ca/rpc/protoutils";
+option go_package = "github.com/xadaemon/prisma_ca/rpc/protoutils";
 
 enum ExtensionType {
   EMPTY = 0;

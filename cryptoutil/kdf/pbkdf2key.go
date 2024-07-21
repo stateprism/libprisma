@@ -7,7 +7,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"github.com/stateprism/libprisma/cryptoutil"
+	"github.com/xadaemon/libprisma/cryptoutil"
 	"golang.org/x/crypto/pbkdf2"
 	"hash"
 	"reflect"

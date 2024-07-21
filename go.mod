@@ -1,4 +1,4 @@
-module github.com/stateprism/libprisma
+module github.com/xadaemon/libprisma
 
 go 1.22.3
 

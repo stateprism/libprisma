@@ -5,7 +5,7 @@ import (
 	"crypto/cipher"
 	"crypto/sha256"
 	"crypto/sha512"
-	"github.com/stateprism/libprisma/cryptoutil"
+	"github.com/xadaemon/libprisma/cryptoutil"
 	"golang.org/x/crypto/pbkdf2"
 	"hash"
 )
