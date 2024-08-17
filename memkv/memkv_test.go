@@ -1,7 +1,7 @@
 package memkv_test
 
 import (
-	"github.com/stateprism/libprisma/memkv"
+	"github.com/xadaemon/libprisma/memkv"
 	"testing"
 )
 

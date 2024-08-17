@@ -1,7 +1,7 @@
 package libprisma_test
 
 import (
-	"github.com/stateprism/libprisma"
+	"github.com/xadaemon/libprisma"
 	"testing"
 )
 

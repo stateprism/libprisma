@@ -2,7 +2,7 @@ package encryption_test
 
 import (
 	"github.com/google/go-cmp/cmp"
-	"github.com/stateprism/libprisma/cryptoutil/encryption"
+	"github.com/xadaemon/libprisma/cryptoutil/encryption"
 	"testing"
 )
 
