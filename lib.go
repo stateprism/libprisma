@@ -178,3 +178,14 @@ func Sieve[S ~[]Result[T], T any](s S) ([]T, []error) {
 	}
 	return vals, errs
 }
+
+// MapValToKey takes a map with keys of type K and values of type V, and returns a new map
+// with keys and values swapped. The values in the original map should be comparable.
+func MapValToKey[K comparable, V comparable](m map[K]V) map[V]K {
+	r := map[V]K{}
+	for k, v := range m {
+		r[v] = k
+	}
+
+	return r
+}
